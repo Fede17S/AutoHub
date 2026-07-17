@@ -1,0 +1,474 @@
+-- ============================================================================
+--  AUTOGESTIÓN · Esquema Supabase para agencias de autos
+--  Multi-tenant (cada agencia ve solo sus datos) · Roles admin / vendedor
+--  Catálogo público de solo-lectura · Contraseñas hasheadas
+--
+--  CÓMO USAR:
+--  1. Creá un proyecto nuevo en https://supabase.com
+--  2. Andá a SQL Editor y pegá TODO este archivo
+--  3. Ejecutá (Run). Corre en orden, es idempotente en lo posible.
+--  4. Al final está el bloque para crear tu primera agencia + usuario admin.
+--
+--  MODELO DE SEGURIDAD:
+--  - La app usa un token propio por empresa (x-empresa-token) que viaja en el
+--    header de cada request, igual que en CoreDistri. Ese token identifica a
+--    qué empresa pertenece la sesión.
+--  - Las políticas RLS leen ese token y filtran TODO por empresa_id.
+--  - El rol (admin/vendedor) se guarda en el token y limita qué puede hacer y ver.
+--  - La anon key de Supabase es pública por diseño: la seguridad NO depende de
+--    ocultarla, depende de estas políticas RLS.
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+--  EXTENSIONES
+-- ----------------------------------------------------------------------------
+create extension if not exists pgcrypto;   -- para hashear contraseñas (crypt/gen_salt)
+
+-- ============================================================================
+--  1. TABLAS
+-- ============================================================================
+
+-- ---- EMPRESAS (cada agencia) -----------------------------------------------
+create table if not exists public.empresas (
+  id            uuid primary key default gen_random_uuid(),
+  nombre        text not null,
+  telefono      text default '',
+  direccion     text default '',
+  -- config del dólar
+  usd_tipo      text default 'blue',     -- oficial|blue|bolsa|contadoconliqui|tarjeta|mayorista|cripto
+  usd_valor     numeric default 0,
+  usd_fecha     timestamptz,
+  -- branding para el catálogo
+  logo_url      text default '',
+  -- token secreto de la empresa (se compara contra el header en cada request)
+  token         text not null default encode(gen_random_bytes(24), 'hex'),
+  creado        timestamptz default now()
+);
+
+-- ---- USUARIOS (admin / vendedor por empresa) -------------------------------
+create table if not exists public.usuarios (
+  id            uuid primary key default gen_random_uuid(),
+  empresa_id    uuid not null references public.empresas(id) on delete cascade,
+  nombre        text not null,
+  email         text not null,
+  -- la contraseña se guarda hasheada por el trigger de abajo, nunca en texto plano
+  pass_hash     text not null,
+  rol           text not null default 'vendedor' check (rol in ('admin','vendedor')),
+  activo        boolean default true,
+  creado        timestamptz default now(),
+  unique (empresa_id, email)
+);
+
+-- ---- VEHÍCULOS -------------------------------------------------------------
+create table if not exists public.vehiculos (
+  id            uuid primary key default gen_random_uuid(),
+  empresa_id    uuid not null references public.empresas(id) on delete cascade,
+  marca         text not null,
+  modelo        text not null,
+  anio          int,
+  km            int,
+  combustible   text default 'Nafta',
+  transmision   text default 'Manual',
+  color         text default '',
+  patente       text default '',
+  costo         numeric default 0,       -- costo de compra (SENSIBLE: solo admin)
+  precio        numeric default 0,       -- precio de venta
+  moneda        text default 'ARS' check (moneda in ('ARS','USD')),
+  descripcion   text default '',
+  estado        text default 'disponible' check (estado in ('disponible','reservado','vendido','pausado')),
+  publicado     boolean default false,   -- aparece en el catálogo público
+  fotos         jsonb default '[]'::jsonb,   -- array de URLs (Storage) o base64
+  docs          jsonb default '{}'::jsonb,   -- {"Título":"ok","08":"pend",...}
+  -- reserva
+  senia         numeric default 0,
+  senia_cliente text default '',
+  senia_tel     text default '',
+  senia_fecha   date,
+  creado        timestamptz default now()
+);
+create index if not exists idx_veh_empresa on public.vehiculos(empresa_id);
+create index if not exists idx_veh_pub on public.vehiculos(empresa_id, publicado) where publicado = true;
+
+-- ---- VENTAS ----------------------------------------------------------------
+create table if not exists public.ventas (
+  id            uuid primary key default gen_random_uuid(),
+  empresa_id    uuid not null references public.empresas(id) on delete cascade,
+  vehiculo_id   uuid references public.vehiculos(id) on delete set null,
+  veh_nombre    text default '',         -- copia por si se borra el vehículo
+  precio        numeric not null default 0,
+  costo         numeric default 0,       -- costo del vehículo al momento de la venta (SENSIBLE)
+  fecha         date default current_date,
+  comprador     text default '',
+  telefono      text default '',
+  pagos         jsonb default '[]'::jsonb,   -- composición: [{tipo,monto,det}]
+  notas         text default '',
+  creado        timestamptz default now()
+);
+create index if not exists idx_ventas_empresa on public.ventas(empresa_id);
+
+-- ---- GASTOS ----------------------------------------------------------------
+create table if not exists public.gastos (
+  id            uuid primary key default gen_random_uuid(),
+  empresa_id    uuid not null references public.empresas(id) on delete cascade,
+  vehiculo_id   uuid references public.vehiculos(id) on delete set null,
+  concepto      text not null,
+  monto         numeric not null default 0,
+  fecha         date default current_date,
+  categoria     text default 'Otro',
+  creado        timestamptz default now()
+);
+create index if not exists idx_gastos_empresa on public.gastos(empresa_id);
+
+-- ---- COBROS (cuotas / cheques / recordatorios) -----------------------------
+create table if not exists public.cobros (
+  id            uuid primary key default gen_random_uuid(),
+  empresa_id    uuid not null references public.empresas(id) on delete cascade,
+  venta_id      uuid references public.ventas(id) on delete cascade,
+  veh_nombre    text default '',
+  tipo          text default 'manual',   -- cuota|cheque|manual
+  descripcion   text not null,
+  fecha         date,                    -- vencimiento
+  monto         numeric default 0,
+  estado        text default 'pendiente' check (estado in ('pendiente','cobrado')),
+  cobrado_fecha date,
+  creado        timestamptz default now()
+);
+create index if not exists idx_cobros_empresa on public.cobros(empresa_id);
+
+-- ---- INTERESADOS (CRM) -----------------------------------------------------
+create table if not exists public.interesados (
+  id            uuid primary key default gen_random_uuid(),
+  empresa_id    uuid not null references public.empresas(id) on delete cascade,
+  vehiculo_id   uuid references public.vehiculos(id) on delete set null,
+  nombre        text not null,
+  telefono      text default '',
+  estado        text default 'nuevo' check (estado in ('nuevo','seguimiento','negociando','cerrado','perdido')),
+  presupuesto   numeric default 0,
+  notas         text default '',
+  creado        timestamptz default now()
+);
+create index if not exists idx_int_empresa on public.interesados(empresa_id);
+
+-- ============================================================================
+--  2. HASHEO AUTOMÁTICO DE CONTRASEÑAS
+--     El panel manda la contraseña en texto; este trigger la hashea antes de
+--     guardarla. Así nunca queda una contraseña en texto plano en la base.
+-- ============================================================================
+create or replace function public.trg_hash_pass()
+returns trigger
+language plpgsql
+as $$
+begin
+  -- solo re-hashea si cambió y no parece ya un hash bcrypt ($2...)
+  if new.pass_hash is not null
+     and (tg_op = 'INSERT' or new.pass_hash is distinct from old.pass_hash)
+     and left(new.pass_hash, 4) <> '$2a$'
+     and left(new.pass_hash, 4) <> '$2b$' then
+    new.pass_hash := crypt(new.pass_hash, gen_salt('bf'));
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_hash_pass on public.usuarios;
+create trigger trg_hash_pass
+  before insert or update on public.usuarios
+  for each row execute function public.trg_hash_pass();
+
+-- ============================================================================
+--  3. FUNCIONES DE AUTENTICACIÓN
+-- ============================================================================
+
+-- ---- LOGIN: valida email+password, devuelve token de empresa + datos --------
+--  El panel llama a esta RPC. Si las credenciales son correctas, devuelve el
+--  token de la empresa, el rol y los datos del usuario. El panel guarda ese
+--  token y lo manda en el header x-empresa-token en cada request posterior.
+create or replace function public.login_agencia(p_email text, p_pass text)
+returns table (
+  ok          boolean,
+  usuario_id  uuid,
+  nombre      text,
+  rol         text,
+  empresa_id  uuid,
+  empresa     text,
+  token       text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  u record;
+begin
+  select us.*, em.nombre as em_nombre, em.token as em_token
+    into u
+    from public.usuarios us
+    join public.empresas em on em.id = us.empresa_id
+   where lower(us.email) = lower(trim(p_email))
+     and us.activo = true
+   limit 1;
+
+  if u.id is null then
+    return query select false, null::uuid, null::text, null::text, null::uuid, null::text, null::text;
+    return;
+  end if;
+
+  -- comparar contraseña con el hash
+  if u.pass_hash = crypt(p_pass, u.pass_hash) then
+    return query select true, u.id, u.nombre, u.rol, u.empresa_id, u.em_nombre, u.em_token;
+  else
+    return query select false, null::uuid, null::text, null::text, null::uuid, null::text, null::text;
+  end if;
+end;
+$$;
+
+-- ---- Lee un header de la request de forma segura (nunca explota) ------------
+--  Si el header no viene o request.headers está vacío, devuelve NULL en vez de
+--  fallar. Esto es clave: sin esto, un request sin header rompe toda la query.
+create or replace function public.header(p_name text)
+returns text
+language plpgsql
+stable
+as $$
+declare
+  h text;
+begin
+  h := current_setting('request.headers', true);
+  if h is null or h = '' then
+    return null;
+  end if;
+  return (h::jsonb ->> p_name);
+exception when others then
+  return null;
+end;
+$$;
+
+-- ---- Resuelve la empresa a partir del token del header ----------------------
+--  Lee el header 'x-empresa-token' que el panel manda en cada request y
+--  devuelve el empresa_id correspondiente. Es el corazón del aislamiento
+--  entre agencias: si el token no existe, no devuelve ninguna fila.
+create or replace function public.empresa_actual()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select e.id
+  from public.empresas e
+  where e.token = nullif(public.header('x-empresa-token'), '')
+  limit 1;
+$$;
+
+-- ---- Rol actual (para políticas que dependen de admin/vendedor) -------------
+--  El panel manda también el rol en el header 'x-empresa-rol'. Como el rol
+--  viene del login validado y el token de empresa acompaña, es coherente.
+create or replace function public.rol_actual()
+returns text
+language sql
+stable
+as $$
+  select coalesce(nullif(public.header('x-empresa-rol'), ''), 'vendedor');
+$$;
+
+create or replace function public.es_admin()
+returns boolean
+language sql
+stable
+as $$
+  select public.rol_actual() = 'admin';
+$$;
+
+-- ============================================================================
+--  4. ROW LEVEL SECURITY
+--     Regla base: cada fila pertenece a una empresa (empresa_id). Solo se ve /
+--     se toca si empresa_id = empresa_actual() (el token del header coincide).
+-- ============================================================================
+
+alter table public.empresas    enable row level security;
+alter table public.usuarios    enable row level security;
+alter table public.vehiculos   enable row level security;
+alter table public.ventas      enable row level security;
+alter table public.gastos      enable row level security;
+alter table public.cobros      enable row level security;
+alter table public.interesados enable row level security;
+
+-- ---- EMPRESAS: solo la propia (lectura). No se edita desde el panel común. --
+drop policy if exists emp_sel on public.empresas;
+create policy emp_sel on public.empresas
+  for select using (id = public.empresa_actual());
+
+drop policy if exists emp_upd on public.empresas;
+create policy emp_upd on public.empresas
+  for update using (id = public.empresa_actual() and public.es_admin());
+
+-- ---- USUARIOS: la empresa ve los suyos; solo admin crea/edita --------------
+drop policy if exists usr_sel on public.usuarios;
+create policy usr_sel on public.usuarios
+  for select using (empresa_id = public.empresa_actual());
+
+drop policy if exists usr_ins on public.usuarios;
+create policy usr_ins on public.usuarios
+  for insert with check (empresa_id = public.empresa_actual() and public.es_admin());
+
+drop policy if exists usr_upd on public.usuarios;
+create policy usr_upd on public.usuarios
+  for update using (empresa_id = public.empresa_actual() and public.es_admin());
+
+drop policy if exists usr_del on public.usuarios;
+create policy usr_del on public.usuarios
+  for delete using (empresa_id = public.empresa_actual() and public.es_admin());
+
+-- ---- Helper de políticas estándar por empresa (para las tablas de datos) ----
+--  Patrón repetido: SELECT si es de mi empresa; INSERT/UPDATE con check de
+--  empresa; DELETE solo admin. Se declara tabla por tabla para claridad.
+
+-- VEHÍCULOS
+drop policy if exists veh_sel on public.vehiculos;
+create policy veh_sel on public.vehiculos
+  for select using (empresa_id = public.empresa_actual());
+drop policy if exists veh_ins on public.vehiculos;
+create policy veh_ins on public.vehiculos
+  for insert with check (empresa_id = public.empresa_actual());
+drop policy if exists veh_upd on public.vehiculos;
+create policy veh_upd on public.vehiculos
+  for update using (empresa_id = public.empresa_actual());
+drop policy if exists veh_del on public.vehiculos;
+create policy veh_del on public.vehiculos
+  for delete using (empresa_id = public.empresa_actual() and public.es_admin());
+
+-- VENTAS  (crear sí; borrar/anular solo admin)
+drop policy if exists ven_sel on public.ventas;
+create policy ven_sel on public.ventas
+  for select using (empresa_id = public.empresa_actual());
+drop policy if exists ven_ins on public.ventas;
+create policy ven_ins on public.ventas
+  for insert with check (empresa_id = public.empresa_actual());
+drop policy if exists ven_upd on public.ventas;
+create policy ven_upd on public.ventas
+  for update using (empresa_id = public.empresa_actual() and public.es_admin());
+drop policy if exists ven_del on public.ventas;
+create policy ven_del on public.ventas
+  for delete using (empresa_id = public.empresa_actual() and public.es_admin());
+
+-- GASTOS (solo admin, son sensibles)
+drop policy if exists gas_sel on public.gastos;
+create policy gas_sel on public.gastos
+  for select using (empresa_id = public.empresa_actual() and public.es_admin());
+drop policy if exists gas_ins on public.gastos;
+create policy gas_ins on public.gastos
+  for insert with check (empresa_id = public.empresa_actual() and public.es_admin());
+drop policy if exists gas_upd on public.gastos;
+create policy gas_upd on public.gastos
+  for update using (empresa_id = public.empresa_actual() and public.es_admin());
+drop policy if exists gas_del on public.gastos;
+create policy gas_del on public.gastos
+  for delete using (empresa_id = public.empresa_actual() and public.es_admin());
+
+-- COBROS
+drop policy if exists cob_sel on public.cobros;
+create policy cob_sel on public.cobros
+  for select using (empresa_id = public.empresa_actual());
+drop policy if exists cob_ins on public.cobros;
+create policy cob_ins on public.cobros
+  for insert with check (empresa_id = public.empresa_actual());
+drop policy if exists cob_upd on public.cobros;
+create policy cob_upd on public.cobros
+  for update using (empresa_id = public.empresa_actual());
+drop policy if exists cob_del on public.cobros;
+create policy cob_del on public.cobros
+  for delete using (empresa_id = public.empresa_actual() and public.es_admin());
+
+-- INTERESADOS
+drop policy if exists int_sel on public.interesados;
+create policy int_sel on public.interesados
+  for select using (empresa_id = public.empresa_actual());
+drop policy if exists int_ins on public.interesados;
+create policy int_ins on public.interesados
+  for insert with check (empresa_id = public.empresa_actual());
+drop policy if exists int_upd on public.interesados;
+create policy int_upd on public.interesados
+  for update using (empresa_id = public.empresa_actual());
+drop policy if exists int_del on public.interesados;
+create policy int_del on public.interesados
+  for delete using (empresa_id = public.empresa_actual());
+
+-- ============================================================================
+--  5. CATÁLOGO PÚBLICO
+--     Vista de solo-lectura con los vehículos publicados. NO expone costo,
+--     ganancia, ni datos de reserva/interesados. El sitio público la consulta
+--     con la anon key sin token de empresa.
+-- ============================================================================
+create or replace view public.catalogo_publico
+with (security_invoker = false) as
+  select
+    v.id, v.empresa_id,
+    v.marca, v.modelo, v.anio, v.km,
+    v.combustible, v.transmision, v.color,
+    v.precio, v.moneda, v.descripcion, v.estado, v.fotos,
+    e.nombre    as agencia_nombre,
+    e.telefono  as agencia_tel,
+    e.usd_valor as cotizacion
+  from public.vehiculos v
+  join public.empresas e on e.id = v.empresa_id
+  where v.publicado = true
+    and v.estado <> 'vendido';
+
+-- La anon key necesita poder leer la vista. Como la vista NO tiene RLS propia
+-- y filtra por publicado=true, es seguro exponerla en lectura.
+grant select on public.catalogo_publico to anon, authenticated;
+
+-- Para que el sitio público filtre por su agencia, se consulta:
+--   select * from catalogo_publico where empresa_id = 'UUID-DE-LA-AGENCIA';
+-- (el UUID de la agencia es público, no es secreto; el token sí lo es)
+
+-- ============================================================================
+--  6. PERMISOS
+-- ============================================================================
+
+-- Permisos base sobre las tablas para los roles de la API.
+-- La SEGURIDAD real la ponen las políticas RLS de arriba; estos grants solo
+-- habilitan la operación para que RLS después filtre fila por fila.
+-- (En Supabase estos roles suelen tener grants por defecto; los declaramos
+--  explícitos para que el esquema sea autocontenido y reproducible.)
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on
+  public.empresas, public.usuarios, public.vehiculos, public.ventas,
+  public.gastos, public.cobros, public.interesados
+  to anon, authenticated;
+
+-- RPC ejecutables por la anon key
+grant execute on function public.login_agencia(text, text) to anon, authenticated;
+grant execute on function public.header(text) to anon, authenticated;
+grant execute on function public.empresa_actual() to anon, authenticated;
+grant execute on function public.rol_actual() to anon, authenticated;
+grant execute on function public.es_admin() to anon, authenticated;
+
+-- ============================================================================
+--  7. SEED · Creá tu primera agencia y tu usuario admin
+--     Cambiá los valores y ejecutá SOLO este bloque una vez.
+-- ============================================================================
+do $$
+declare
+  v_empresa uuid;
+begin
+  insert into public.empresas (nombre, telefono, direccion)
+  values ('Mi Agencia', '5492804000000', 'Puerto Madryn, Chubut')
+  returning id into v_empresa;
+
+  insert into public.usuarios (empresa_id, nombre, email, pass_hash, rol)
+  values (v_empresa, 'Federico', 'admin@miagencia.com', 'cambiala123', 'admin');
+  --                                                       ^^^^^^^^^^^^
+  --  Esta contraseña se hashea sola por el trigger. Cambiala por una tuya.
+
+  raise notice 'Agencia creada con id: %', v_empresa;
+  raise notice 'Guardá ese UUID: lo vas a usar en el catálogo público.';
+end $$;
+
+-- Para ver el token de tu empresa (lo necesita el panel):
+--   select id, nombre, token from public.empresas;
+
+-- ============================================================================
+--  FIN. Próximo paso: conectar el panel HTML a este backend
+--  (reemplazar la capa localStorage por llamadas a Supabase con el token).
+-- ============================================================================
