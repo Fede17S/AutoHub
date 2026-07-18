@@ -377,6 +377,42 @@ textarea.inp{resize:vertical;min-height:70px}
   </div>
 </div>
 
+<!-- ============ SUPERADMIN ============ -->
+<div id="saScreen" style="display:none;position:fixed;inset:0;z-index:600;background:var(--bg);overflow-y:auto">
+  <!-- login superadmin -->
+  <div id="saLogin" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div class="login-box">
+      <div style="text-align:center;margin-bottom:8px">
+        <div style="font-family:var(--font-d);font-weight:800;font-size:1.4rem">CORE <em style="color:var(--acc);font-style:normal">CENTRAL</em></div>
+        <div style="font-size:.7rem;letter-spacing:2px;color:var(--txt2);margin-top:5px">GESTIÓN DE AGENCIAS · AUTOHUB</div>
+      </div>
+      <p style="text-align:center;color:var(--txt2);font-size:.85rem;margin:16px 0 20px">Acceso de superadministrador</p>
+      <div class="field" style="margin-bottom:12px"><label>Email</label>
+        <input class="inp" id="sa_email" type="email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')$('sa_pass').focus()"></div>
+      <div class="field" style="margin-bottom:16px"><label>Contraseña de superadmin</label>
+        <input class="inp" id="sa_pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')loginSuperadmin()"></div>
+      <button class="btn btn-acc" style="width:100%;justify-content:center" onclick="loginSuperadmin()">Entrar</button>
+      <div id="sa_error" style="color:var(--bad);font-size:.82rem;text-align:center;margin-top:12px;min-height:16px"></div>
+      <div style="text-align:center;margin-top:16px"><a href="#" onclick="cerrarSuperadmin();return false" style="font-size:.72rem;color:var(--txt2);text-decoration:none">← Volver al login normal</a></div>
+    </div>
+  </div>
+  <!-- panel superadmin -->
+  <div id="saPanel" style="display:none;max-width:1100px;margin:0 auto;padding:24px 18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-family:var(--font-d);font-weight:800;font-size:1.3rem">CORE <em style="color:var(--acc);font-style:normal">CENTRAL</em></div>
+        <div style="font-size:.72rem;color:var(--txt2);letter-spacing:1px">Gestión de agencias · AutoHub</div>
+      </div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-acc btn-sm" onclick="abrirCrearAgencia()">+ Nueva agencia</button>
+        <button class="btn btn-ghost btn-sm" onclick="salirSuperadmin()">Salir</button>
+      </div>
+    </div>
+    <div id="sa_kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px"></div>
+    <div id="sa_lista"></div>
+  </div>
+</div>
+
 <div class="app" id="appRoot" style="display:none">
 
   <!-- ============ SIDEBAR ============ -->
@@ -596,6 +632,42 @@ textarea.inp{resize:vertical;min-height:70px}
   </div>
 </div>
 
+<!-- MODAL: crear agencia (superadmin) -->
+<div class="modal-bg" id="modalSaAgencia" style="z-index:700">
+  <div class="modal">
+    <div class="modal-head"><h2 id="saAgTitle">Nueva agencia</h2><button class="close-x" onclick="closeModal('modalSaAgencia')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Nombre de la agencia *</label><input class="inp" id="sa_ag_nombre" placeholder="Automotores del Sur"></div>
+      <div class="field"><label>Ciudad</label><input class="inp" id="sa_ag_ciudad" placeholder="Puerto Madryn"></div>
+      <div class="field"><label>Teléfono</label><input class="inp" id="sa_ag_tel" placeholder="5492804..."></div>
+      <div class="field"><label>Contacto (responsable)</label><input class="inp" id="sa_ag_contacto" placeholder="Nombre / email"></div>
+      <div class="field"><label>Plan</label><select class="inp" id="sa_ag_plan"><option value="base">Base</option><option value="estandar">Estándar</option><option value="pro">Pro</option></select></div>
+      <div class="field"><label>Abono mensual ($)</label><input class="inp" id="sa_ag_precio" type="number" placeholder="0"></div>
+      <div class="field"><label>Vence el</label><input class="inp" id="sa_ag_vence" type="date"></div>
+    </div>
+    <div style="border-top:1px solid var(--line);margin:16px 0 14px;padding-top:14px">
+      <div style="font-weight:600;font-size:.9rem;margin-bottom:12px">Usuario administrador de la agencia</div>
+      <div class="form-grid">
+        <div class="field"><label>Nombre *</label><input class="inp" id="sa_ad_nombre" placeholder="Juan Pérez"></div>
+        <div class="field"><label>Email *</label><input class="inp" id="sa_ad_email" type="email" placeholder="admin@agencia.com"></div>
+        <div class="field full"><label>Contraseña *</label><input class="inp" id="sa_ad_pass" placeholder="Contraseña inicial"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modalSaAgencia')">Cancelar</button>
+      <button class="btn btn-acc" onclick="crearAgencia()">Crear agencia</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: gestionar agencia (superadmin) -->
+<div class="modal-bg" id="modalSaGestion" style="z-index:700">
+  <div class="modal">
+    <div class="modal-head"><h2 id="saGestTitle">Agencia</h2><button class="close-x" onclick="closeModal('modalSaGestion')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+    <div id="saGestBody"></div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalUsuario">
   <div class="modal">
     <div class="modal-head"><h2>Agregar usuario</h2><button class="close-x" onclick="closeModal('modalUsuario')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
@@ -715,9 +787,30 @@ async function hacerLogin(){
   if(!email||!pass){ $('lg_error').textContent='Completá email y contraseña'; return; }
   $('lg_btn').disabled = true; $('lg_btn').textContent = 'Ingresando...'; $('lg_error').textContent='';
   try{
+    /* 1) ¿es el superadmin? probamos primero */
+    try{
+      const rSa = await fetch(SB_URL+'/rest/v1/rpc/login_superadmin', {
+        method:'POST', headers:{ 'apikey':SB_ANON, 'Authorization':'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+        body:JSON.stringify({ p_email:email, p_pass:pass }) });
+      if(rSa.ok){
+        const saToken = await rSa.json();
+        if(saToken){
+          SA_TOKEN = saToken; try{ localStorage.setItem('autohub_sa_token', saToken); }catch(e){}
+          $('loginScreen').style.display='none';
+          $('saScreen').style.display='block'; $('saLogin').style.display='none'; $('saPanel').style.display='block';
+          cargarAgencias();
+          return;
+        }
+      }
+    }catch(e){ /* si falla, seguimos con login de agencia */ }
+
+    /* 2) login normal de agencia */
     const res = await sbRPC('login_agencia', { p_email:email, p_pass:pass });
     const row = Array.isArray(res)?res[0]:res;
-    if(!row || !row.ok){ $('lg_error').textContent='Email o contraseña incorrectos'; return; }
+    if(!row || !row.ok){
+      $('lg_error').textContent = (row && row.nombre==='SUSPENDIDA') ? 'Esta cuenta está suspendida. Contactá al administrador.' : 'Email o contraseña incorrectos';
+      return;
+    }
     SES = { token:row.token, rol:row.rol, empresaId:row.empresa_id, usuario:row.usuario_id, nombre:row.nombre };
     localStorage.setItem('autogestion_ses', JSON.stringify(SES));
     await iniciarApp();
@@ -740,7 +833,7 @@ async function cargarTodo(){
   const emps = await sbSelect('empresas', 'select=*');
   if(emps.length){
     const e = emps[0];
-    DB.config = { nombre:e.nombre||'Mi Agencia', tel:e.telefono||'', dir:e.direccion||'', moneda:'ARS',
+    DB.config = { nombre:e.nombre||'Mi Agencia', tel:e.telefono||'', dir:e.direccion||'', moneda:'ARS', logo:e.logo_url||'',
       usd:{ tipo:e.usd_tipo||'blue', valor:e.usd_valor||0, fecha:e.usd_fecha||'', auto:true } };
     SES.empresa = e.nombre;
   }
@@ -2037,30 +2130,20 @@ function generarPresupuestoPDF(){
   const W = 210, M = 16;
   const money = simState.moneda==='USD' ? (n=>'US$ '+Math.round(n||0).toLocaleString('es-AR')) : (n=>'$ '+Math.round(n||0).toLocaleString('es-AR'));
   const cfg = DB.config;
-  const naranja = [255,92,26], oscuro = [13,16,19], gris = [139,151,165];
+  const naranja = COL.naranja, oscuro = COL.oscuro, gris = COL.gris;
 
-  /* encabezado con banda de color */
-  doc.setFillColor(...oscuro); doc.rect(0,0,W,34,'F');
-  doc.setFillColor(...naranja); doc.rect(0,34,W,1.5,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20);
-  doc.text((cfg.nombre||'Mi Agencia').toUpperCase(), M, 16);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...gris);
-  let sub = [cfg.dir, cfg.tel].filter(Boolean).join('  ·  ');
-  if(sub) doc.text(sub, M, 23);
-  doc.setTextColor(...naranja); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text('PRESUPUESTO DE FINANCIACIÓN', M, 30);
+  /* encabezado blanco con logo */
+  pdfHeader(doc, 'Presupuesto de financiación');
 
-  let y = 46;
-  doc.setTextColor(...oscuro); doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text('Fecha: '+fechaLinda(hoy()), W-M, 44, {align:'right'});
+  let y = 50;
 
   /* datos cliente/vehículo */
   const box = (titulo, lineas, x, w) => {
-    doc.setDrawColor(220); doc.setFillColor(247,248,249);
+    doc.setDrawColor(...COL.linea); doc.setFillColor(248,249,250);
     doc.roundedRect(x, y, w, 8+lineas.length*5.5, 2, 2, 'FD');
     doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...naranja);
     doc.text(titulo.toUpperCase(), x+4, y+6);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...oscuro);
     lineas.forEach((l,i)=>doc.text(l, x+4, y+12+i*5.5));
   };
   const colW = (W-M*2-6)/2;
@@ -2068,10 +2151,10 @@ function generarPresupuestoPDF(){
   box('Vehículo', [simState.vehNombre||'—'], M+colW+6, colW);
   y += 8 + Math.max(2,1)*5.5 + 8;
 
-  /* resumen financiero */
+  /* resumen financiero: fondo naranja claro con borde */
   const d = simData();
-  doc.setFillColor(...oscuro); doc.roundedRect(M, y, W-M*2, 30, 2, 2, 'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.setFillColor(255,245,239); doc.setDrawColor(...naranja); doc.setLineWidth(0.5);
+  doc.roundedRect(M, y, W-M*2, 30, 2, 2, 'FD');
   const cols = [
     ['Precio', money(simState.precio)],
     ['Anticipo', money(simState.anticipo)],
@@ -2081,13 +2164,14 @@ function generarPresupuestoPDF(){
   const cw = (W-M*2)/4;
   cols.forEach((c,i)=>{
     const cx = M+cw*i+cw/2;
-    doc.setTextColor(...gris); doc.setFontSize(7.5); doc.text(c[0].toUpperCase(), cx, y+9, {align:'center'});
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.setTextColor(...gris); doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.text(c[0].toUpperCase(), cx, y+9, {align:'center'});
+    doc.setTextColor(...oscuro); doc.setFont('helvetica','bold'); doc.setFontSize(11);
     doc.text(c[1], cx, y+18, {align:'center'});
     doc.setFont('helvetica','normal');
   });
-  doc.setTextColor(...naranja); doc.setFontSize(8);
+  doc.setTextColor(...naranja); doc.setFont('helvetica','bold'); doc.setFontSize(8);
   doc.text(`${simState.cuotas} cuotas · Sistema ${simState.sistema} · TNA ${simState.tasa}%`, W/2, y+26, {align:'center'});
+  doc.setFont('helvetica','normal');
   y += 38;
 
   /* tabla de cuotas */
@@ -2158,26 +2242,37 @@ function reciboDeVenta(id){  const s = DB.ventas.find(x=>x.id===id); if(!s) retu
 /* =====================================================
    DOCUMENTOS PDF (boleto, recibo, ficha)
    ===================================================== */
-const COL = { naranja:[255,92,26], oscuro:[13,16,19], gris:[139,151,165] };
+const COL = { naranja:[255,92,26], oscuro:[30,34,40], gris:[120,128,138], linea:[225,228,232] };
 function pdfHeader(doc, titulo){
   const W = 210, M = 16;
   const cfg = DB.config;
-  doc.setFillColor(...COL.oscuro); doc.rect(0,0,W,32,'F');
-  doc.setFillColor(...COL.naranja); doc.rect(0,32,W,1.5,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(19);
-  doc.text((cfg.nombre||'Mi Agencia').toUpperCase(), M, 15);
+  /* logo a la izquierda si existe */
+  let textX = M;
+  if(cfg.logo){
+    try{
+      const props = doc.getImageProperties(cfg.logo);
+      const h = 16, w = Math.min(40, h*props.width/props.height);
+      doc.addImage(cfg.logo, 'PNG', M, 10, w, h);
+      textX = M + w + 6;
+    }catch(e){}
+  }
+  doc.setTextColor(...COL.oscuro); doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  doc.text((cfg.nombre||'Mi Agencia').toUpperCase(), textX, 17);
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...COL.gris);
   const sub = [cfg.dir, cfg.tel].filter(Boolean).join('   ·   ');
-  if(sub) doc.text(sub, M, 22);
-  doc.setTextColor(...COL.naranja); doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.text(titulo.toUpperCase(), M, 29);
+  if(sub) doc.text(sub, textX, 23);
+  /* línea naranja separadora */
+  doc.setFillColor(...COL.naranja); doc.rect(0, 30, W, 1.2, 'F');
+  doc.setTextColor(...COL.naranja); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(titulo.toUpperCase(), M, 39);
   doc.setTextColor(...COL.oscuro); doc.setFontSize(8.5); doc.setFont('helvetica','normal');
-  doc.text('Fecha: '+fechaLinda(hoy()), W-M, 20, {align:'right'});
+  doc.text('Fecha: '+fechaLinda(hoy()), W-M, 39, {align:'right'});
 }
 function pdfFooter(doc, nota){
   const W=210;
+  doc.setDrawColor(...COL.linea); doc.setLineWidth(0.3); doc.line(16, 280, W-16, 280);
   doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(...COL.gris);
-  if(nota) doc.text(nota, W/2, 283, {align:'center'});
+  if(nota) doc.text(nota, W/2, 285, {align:'center'});
   doc.text('Generado con AutoHub', W/2, 290, {align:'center'});
 }
 function moneyVeh(v){ return (v.moneda==='USD'?'US$ ':'$ ') + Math.round(v.precio||0).toLocaleString('es-AR'); }
@@ -2189,10 +2284,10 @@ function generarBoleto(ventaId){
   if(!window.jspdf){ toast('Cargando... reintentá'); return; }
   const v = vehById(s.vehId);
   const { jsPDF } = window.jspdf; const doc = new jsPDF({unit:'mm',format:'a4'});
-  const W=210, M=16; let y=44;
+  const W=210, M=16; let y=50;
   pdfHeader(doc, 'Boleto de compraventa');
-  doc.setFontSize(8.5); doc.setTextColor(...COL.gris);
-  doc.text('N° '+numeroDoc(), W-M, 29, {align:'right'});
+  doc.setFontSize(8); doc.setTextColor(...COL.gris);
+  doc.text('N° '+numeroDoc(), W-M, 44, {align:'right'});
 
   const pInt = (t)=>{ doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(40,40,40); const l=doc.splitTextToSize(t,W-M*2); doc.text(l,M,y); y+=l.length*5+2; };
   const titulo = (t)=>{ y+=3; doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...COL.naranja); doc.text(t.toUpperCase(),M,y); y+=6; };
@@ -2258,18 +2353,19 @@ function generarRecibo(opts){
   const W=210, M=16;
   pdfHeader(doc, 'Recibo');
   const money = opts.moneda==='USD' ? (n=>'US$ '+Math.round(n||0).toLocaleString('es-AR')) : (n=>'$ '+Math.round(n||0).toLocaleString('es-AR'));
-  doc.setFontSize(8.5); doc.setTextColor(...COL.gris); doc.text('N° '+numeroDoc(), W-M, 29, {align:'right'});
+  doc.setFontSize(8); doc.setTextColor(...COL.gris); doc.text('N° '+numeroDoc(), W-M, 44, {align:'right'});
 
-  let y=52;
-  /* monto destacado */
-  doc.setFillColor(...COL.oscuro); doc.roundedRect(M, y, W-M*2, 22, 2, 2, 'F');
-  doc.setTextColor(...COL.gris); doc.setFontSize(8); doc.text('RECIBIMOS LA SUMA DE', M+6, y+8);
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  let y=56;
+  /* monto destacado: caja con borde naranja, fondo blanco */
+  doc.setFillColor(255,248,244); doc.setDrawColor(...COL.naranja); doc.setLineWidth(0.5);
+  doc.roundedRect(M, y, W-M*2, 22, 2, 2, 'FD');
+  doc.setTextColor(...COL.gris); doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.text('RECIBIMOS LA SUMA DE', M+6, y+8);
+  doc.setTextColor(...COL.naranja); doc.setFont('helvetica','bold'); doc.setFontSize(20);
   doc.text(money(opts.monto), M+6, y+18);
   y+=32;
 
   const linea=(lbl,val)=>{ doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...COL.gris);doc.text(lbl.toUpperCase(),M,y);
-    doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(40,40,40);doc.text(val||'—',M+45,y);y+=9; };
+    doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(...COL.oscuro);doc.text(val||'—',M+45,y);y+=9; };
   linea('Recibí de', opts.cliente||'—');
   linea('En concepto de', opts.concepto||'Pago');
   if(opts.vehNombre) linea('Vehículo', opts.vehNombre);
@@ -2285,76 +2381,74 @@ function generarRecibo(opts){
   toast('📄 Recibo generado');
 }
 
-/* ---- FICHA PARA PARABRISAS (con QR al catálogo) ---- */
+/* ---- FICHA PARA PARABRISAS (fondo blanco, con logo y QR, sin foto) ---- */
 async function generarFicha(vehId){
   const v = vehById(vehId); if(!v){ toast('Vehículo no encontrado'); return; }
   if(!window.jspdf){ toast('Cargando... reintentá'); return; }
   const { jsPDF } = window.jspdf; const doc = new jsPDF({unit:'mm',format:'a4'});
   const W=210, H=297, M=14;
+  const cfg = DB.config;
 
-  /* marco */
-  doc.setFillColor(...COL.oscuro); doc.rect(0,0,W,H,'F');
-  doc.setDrawColor(...COL.naranja); doc.setLineWidth(1.5); doc.rect(6,6,W-12,H-12);
+  /* marco naranja sobre fondo blanco */
+  doc.setDrawColor(...COL.naranja); doc.setLineWidth(2); doc.rect(8,8,W-16,H-16);
 
-  /* nombre agencia arriba */
-  doc.setTextColor(...COL.naranja); doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text((DB.config.nombre||'Mi Agencia').toUpperCase(), W/2, 22, {align:'center'});
-
-  /* foto principal */
-  let y=32;
-  const foto = v.fotos && v.fotos[0];
-  if(foto){
+  /* logo centrado arriba (o nombre si no hay logo) */
+  let y=30;
+  if(cfg.logo){
     try{
-      const dataUrl = await urlAImgData(foto);
-      const imgProps = doc.getImageProperties(dataUrl);
-      const iw = W-M*2-16, ih = iw*imgProps.height/imgProps.width;
-      const ihMax = 110; const finalH = Math.min(ih, ihMax); const finalW = finalH*imgProps.width/imgProps.height;
-      doc.addImage(dataUrl, 'JPEG', (W-finalW)/2, y, finalW, finalH);
-      y += finalH + 8;
-    }catch(e){ y+=6; }
+      const props = doc.getImageProperties(cfg.logo);
+      const h=26, w=Math.min(80, h*props.width/props.height);
+      doc.addImage(cfg.logo,'PNG',(W-w)/2, 20, w, h);
+      y = 20+h+12;
+    }catch(e){ y=34; }
   }
+  doc.setTextColor(...COL.naranja); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text((cfg.nombre||'Mi Agencia').toUpperCase(), W/2, y, {align:'center'});
+  y += 22;
 
-  /* marca modelo */
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(26);
-  doc.text(`${v.marca} ${v.modelo}`.toUpperCase(), W/2, y+4, {align:'center'}); y+=14;
-  doc.setTextColor(...COL.gris); doc.setFont('helvetica','normal'); doc.setFontSize(13);
-  doc.text(`${v.anio||''}  ·  ${v.km?(+v.km).toLocaleString('es-AR')+' km':''}`, W/2, y, {align:'center'}); y+=14;
+  /* línea divisoria */
+  doc.setDrawColor(...COL.linea); doc.setLineWidth(0.5); doc.line(M+16, y, W-M-16, y); y+=20;
 
-  /* precio grande */
-  doc.setFillColor(...COL.naranja); doc.roundedRect(W/2-45, y, 90, 18, 3, 3, 'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(22);
-  doc.text(moneyVeh(v), W/2, y+12.5, {align:'center'}); y+=28;
+  /* marca modelo grande */
+  doc.setTextColor(...COL.oscuro); doc.setFont('helvetica','bold'); doc.setFontSize(34);
+  doc.text(`${v.marca} ${v.modelo}`.toUpperCase(), W/2, y, {align:'center'}); y+=16;
+  doc.setTextColor(...COL.gris); doc.setFont('helvetica','normal'); doc.setFontSize(16);
+  doc.text(`${v.anio||''}     ${v.km?(+v.km).toLocaleString('es-AR')+' km':''}`, W/2, y, {align:'center'}); y+=24;
 
-  /* specs en dos columnas */
+  /* precio grande en caja naranja */
+  doc.setFillColor(...COL.naranja); doc.roundedRect(W/2-55, y, 110, 24, 4, 4, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(28);
+  doc.text(moneyVeh(v), W/2, y+16, {align:'center'}); y+=40;
+
+  /* specs en dos columnas, texto oscuro */
   const specs = [
     ['Combustible', v.comb], ['Transmisión', v.trans],
     ['Color', v.color], ['Patente', v.patente]
   ].filter(s=>s[1]);
-  doc.setFontSize(11);
+  doc.setFontSize(14);
   specs.forEach((s,i)=>{
-    const col = i%2, row=Math.floor(i/2);
-    const x = M+10 + col*(W-M*2-20)/2, yy = y+row*11;
+    const col=i%2, row=Math.floor(i/2);
+    const x=M+22+col*(W-M*2-44)/2, yy=y+row*14;
     doc.setTextColor(...COL.gris); doc.setFont('helvetica','normal'); doc.text(s[0]+':', x, yy);
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.text(String(s[1]), x+32, yy);
+    doc.setTextColor(...COL.oscuro); doc.setFont('helvetica','bold'); doc.text(String(s[1]), x+38, yy);
   });
-  y += Math.ceil(specs.length/2)*11 + 6;
+  y += Math.ceil(specs.length/2)*14 + 16;
 
-  /* QR al catálogo */
-  const empresaUrl = (DB.config.catalogoUrl || (SB_URL));
-  const qrData = DB.config.catalogoUrl || `Consultá este ${v.marca} ${v.modelo} en ${DB.config.nombre}. Tel: ${DB.config.tel||''}`;
+  /* QR */
+  const qrData = cfg.catalogoUrl || `${v.marca} ${v.modelo} ${v.anio||''} - ${moneyVeh(v)} - ${cfg.nombre}${cfg.tel?' Tel: '+cfg.tel:''}`;
   try{
     const qr = qrcode(0,'M'); qr.addData(qrData); qr.make();
     const qrImg = qr.createDataURL(6,0);
-    const qs=34;
+    const qs=36;
     doc.addImage(qrImg,'GIF', W/2-qs/2, y, qs, qs);
-    doc.setTextColor(...COL.gris); doc.setFontSize(9);
-    doc.text('Escaneá para más info', W/2, y+qs+6, {align:'center'});
+    doc.setTextColor(...COL.gris); doc.setFontSize(10);
+    doc.text('Escaneá para más info', W/2, y+qs+7, {align:'center'});
   }catch(e){}
 
   /* tel abajo */
-  if(DB.config.tel){
-    doc.setTextColor(...COL.naranja); doc.setFont('helvetica','bold'); doc.setFontSize(14);
-    doc.text('WhatsApp: '+DB.config.tel, W/2, H-16, {align:'center'});
+  if(cfg.tel){
+    doc.setTextColor(...COL.naranja); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('WhatsApp: '+cfg.tel, W/2, H-22, {align:'center'});
   }
   doc.save('ficha_'+`${v.marca}_${v.modelo}`.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.pdf');
   toast('📄 Ficha generada');
@@ -2931,6 +3025,19 @@ function rConfig(){
         <div class="field full"><label>Nombre de la agencia</label><input class="inp" id="c_nombre" value="${esc(DB.config.nombre)}"></div>
         <div class="field"><label>WhatsApp (con código país)</label><input class="inp" id="c_tel" value="${esc(DB.config.tel)}" placeholder="5492804123456"></div>
         <div class="field"><label>Dirección</label><input class="inp" id="c_dir" value="${esc(DB.config.dir)}" placeholder="Av. Roca 1234, Puerto Madryn"></div>
+        <div class="field full"><label>Logo de la agencia (aparece en los PDF)</label>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div id="logoPreview" style="width:120px;height:70px;border:1px solid var(--line);border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden">
+              ${DB.config.logo ? `<img src="${DB.config.logo}" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span style="color:var(--txt2);font-size:.75rem">Sin logo</span>'}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <button class="btn btn-ghost btn-sm" onclick="$('logoInput').click()">Subir logo</button>
+              ${DB.config.logo ? '<button class="btn btn-ghost btn-sm" onclick="quitarLogo()">Quitar</button>' : ''}
+            </div>
+            <input type="file" id="logoInput" accept="image/*" style="display:none">
+          </div>
+          <span style="font-size:.72rem;color:var(--txt2);margin-top:6px;display:block">Preferí un logo con fondo transparente o blanco. Se ve mejor en los documentos impresos.</span>
+        </div>
       </div>
       <div class="modal-foot" style="justify-content:flex-start"><button class="btn btn-acc" onclick="saveConfig()">Guardar datos</button></div>
     </div>
@@ -3019,6 +3126,31 @@ function saveConfig(){
   DB.config.dir = $('c_dir').value.trim();
   saveDB(); toast('Datos guardados');
 }
+/* logo de la agencia (para los PDF) */
+document.addEventListener('change', async e=>{
+  if(e.target && e.target.id==='logoInput'){
+    const f = e.target.files[0]; e.target.value='';
+    if(!f) return;
+    try{
+      const blob = await comprimirImg(f, 400, 0.9);
+      const b64 = await blobABase64(blob);
+      DB.config.logo = b64;
+      /* guardar el logo de empresa en Supabase también */
+      await fetch(SB_URL+'/rest/v1/empresas?id=eq.'+SES.empresaId, {
+        method:'PATCH', headers:sbHeaders({'Prefer':'return=minimal'}), body:JSON.stringify({ logo_url:b64 }) });
+      toast('Logo cargado'); rConfig();
+    }catch(err){ toast('No se pudo cargar el logo'); }
+  }
+});
+function blobABase64(blob){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
+}
+async function quitarLogo(){
+  DB.config.logo = '';
+  await fetch(SB_URL+'/rest/v1/empresas?id=eq.'+SES.empresaId, {
+    method:'PATCH', headers:sbHeaders({'Prefer':'return=minimal'}), body:JSON.stringify({ logo_url:'' }) });
+  toast('Logo quitado'); rConfig();
+}
 async function actualizarDolar(){
   DB.config.usd.tipo = $('c_usdtipo').value;
   DB.config.usd.auto = true;
@@ -3044,6 +3176,229 @@ function closeModal(id){ $(id).classList.remove('open'); document.body.style.ove
 document.querySelectorAll('.modal-bg').forEach(m=>{
   m.addEventListener('click', e=>{ if(e.target===m) closeModal(m.id); });
 });
+
+/* =====================================================
+   SUPERADMIN — gestión de agencias (CORE CENTRAL)
+   ===================================================== */
+let SA_TOKEN = '';
+try{ SA_TOKEN = localStorage.getItem('autohub_sa_token')||''; }catch(e){}
+
+function saTokenValido(){
+  if(!SA_TOKEN) return false;
+  try{
+    const txt = atob(SA_TOKEN);           // "sa:<epoch>"
+    if(txt.slice(0,3)!=='sa:') return false;
+    return (+txt.slice(3))*1000 > Date.now();
+  }catch(e){ return false; }
+}
+function mostrarSuperadmin(){
+  $('loginScreen').style.display='none';
+  $('saScreen').style.display='block';
+  if(saTokenValido()){ $('saLogin').style.display='none'; $('saPanel').style.display='block'; cargarAgencias(); }
+  else { $('saLogin').style.display='flex'; $('saPanel').style.display='none'; setTimeout(()=>$('sa_pass').focus(),50); }
+}
+function cerrarSuperadmin(){
+  $('saScreen').style.display='none';
+  $('loginScreen').style.display='flex';
+}
+function salirSuperadmin(){
+  SA_TOKEN=''; try{ localStorage.removeItem('autohub_sa_token'); }catch(e){}
+  location.reload();
+}
+async function loginSuperadmin(){
+  const email = $('sa_email').value.trim();
+  const pass = $('sa_pass').value;
+  if(!email){ $('sa_error').textContent='Ingresá el email'; return; }
+  if(!pass){ $('sa_error').textContent='Ingresá la contraseña'; return; }
+  $('sa_error').textContent='Verificando...';
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/rpc/login_superadmin', {
+      method:'POST', headers:{ 'apikey':SB_ANON, 'Authorization':'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+      body:JSON.stringify({ p_email:email, p_pass:pass }) });
+    if(!r.ok){ $('sa_error').textContent='Error '+r.status; return; }
+    const token = await r.json();
+    if(!token){ $('sa_error').textContent='Email o contraseña incorrectos'; return; }
+    SA_TOKEN = token; try{ localStorage.setItem('autohub_sa_token', token); }catch(e){}
+    $('sa_error').textContent=''; $('sa_pass').value='';
+    $('saLogin').style.display='none'; $('saPanel').style.display='block';
+    cargarAgencias();
+  }catch(e){ $('sa_error').textContent='No se pudo conectar'; }
+}
+async function saRPC(fn, body){
+  const r = await fetch(SB_URL+'/rest/v1/rpc/'+fn, {
+    method:'POST', headers:{ 'apikey':SB_ANON, 'Authorization':'Bearer '+SB_ANON, 'Content-Type':'application/json' },
+    body:JSON.stringify(Object.assign({ p_token:SA_TOKEN }, body||{})) });
+  if(!r.ok){ const t=await r.text(); throw new Error(fn+': '+r.status+' '+t); }
+  const txt = await r.text();
+  return txt ? JSON.parse(txt) : null;
+}
+let SA_AGENCIAS = [];
+async function cargarAgencias(){
+  $('sa_lista').innerHTML = '<p style="color:var(--txt2);text-align:center;padding:30px">Cargando agencias...</p>';
+  try{
+    SA_AGENCIAS = await saRPC('sa_listar_agencias') || [];
+    renderAgencias();
+  }catch(e){
+    if(String(e).includes('no autorizado')){ salirSuperadmin(); mostrarSuperadmin(); return; }
+    $('sa_lista').innerHTML = '<p style="color:var(--bad);text-align:center;padding:30px">Error al cargar: '+esc(String(e))+'</p>';
+  }
+}
+function renderAgencias(){
+  const total = SA_AGENCIAS.length;
+  const activas = SA_AGENCIAS.filter(a=>a.estado==='activa').length;
+  const suspendidas = SA_AGENCIAS.filter(a=>a.estado==='suspendida').length;
+  const ingresos = SA_AGENCIAS.filter(a=>a.estado==='activa').reduce((s,a)=>s+(+a.precio_mes||0),0);
+  const kpi=(lbl,val,color)=>`<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px">
+    <div style="font-size:.7rem;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">${lbl}</div>
+    <div style="font-family:var(--font-d);font-size:1.4rem;font-weight:700;margin-top:4px;${color?'color:'+color:''}">${val}</div></div>`;
+  $('sa_kpis').innerHTML = kpi('Agencias',total)+kpi('Activas',activas,'var(--ok)')+kpi('Suspendidas',suspendidas,suspendidas?'var(--bad)':'')+kpi('Ingreso mensual',fmt(ingresos),'var(--acc)');
+
+  if(!total){ $('sa_lista').innerHTML='<p style="color:var(--txt2);text-align:center;padding:40px">No hay agencias todavía. Creá la primera con "+ Nueva agencia".</p>'; return; }
+  const hoy_ = hoy();
+  $('sa_lista').innerHTML = SA_AGENCIAS.map(a=>{
+    const venc = a.vence ? (a.vence < hoy_ ? `<span style="color:var(--bad)">venció ${fechaLinda(a.vence)}</span>` : `vence ${fechaLinda(a.vence)}`) : 'sin vencimiento';
+    const badge = a.estado==='activa' ? '<span style="background:rgba(52,199,89,.15);color:var(--ok);padding:2px 9px;border-radius:20px;font-size:.72rem">activa</span>'
+      : a.estado==='suspendida' ? '<span style="background:rgba(255,69,58,.15);color:var(--bad);padding:2px 9px;border-radius:20px;font-size:.72rem">suspendida</span>'
+      : '<span style="background:rgba(255,159,10,.15);color:var(--warn);padding:2px 9px;border-radius:20px;font-size:.72rem">'+esc(a.estado)+'</span>';
+    return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:11px;cursor:pointer" onclick='gestionarAgencia("${a.id}")'>
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-weight:600;font-size:1.02rem">${esc(a.nombre)}</span> ${badge}
+            <span style="background:var(--panel2);padding:2px 8px;border-radius:6px;font-size:.7rem;color:var(--txt2);text-transform:uppercase">${esc(a.plan||'base')}</span></div>
+          <div style="font-size:.78rem;color:var(--txt2);margin-top:5px">${a.ciudad?esc(a.ciudad)+' · ':''}${venc}${a.telefono?' · '+esc(a.telefono):''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--font-d);font-weight:700;color:var(--acc)">${fmt(a.precio_mes)}/mes</div>
+          <div style="font-size:.72rem;color:var(--txt2);margin-top:3px">${a.vehiculos} autos · ${a.ventas} ventas · ${a.usuarios} usuarios</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function abrirCrearAgencia(){
+  ['sa_ag_nombre','sa_ag_ciudad','sa_ag_tel','sa_ag_contacto','sa_ag_precio','sa_ag_vence','sa_ad_nombre','sa_ad_email','sa_ad_pass'].forEach(id=>{ if($(id))$(id).value=''; });
+  $('sa_ag_plan').value='base';
+  openModal('modalSaAgencia');
+}
+async function crearAgencia(){
+  const nombre=$('sa_ag_nombre').value.trim(), adNombre=$('sa_ad_nombre').value.trim(),
+        adEmail=$('sa_ad_email').value.trim(), adPass=$('sa_ad_pass').value,
+        tel=$('sa_ag_tel').value.trim();
+  if(!nombre){ toast('Poné el nombre de la agencia'); return; }
+  if(!adNombre||!adEmail||!adPass){ toast('Completá los datos del administrador'); return; }
+  try{
+    await saRPC('sa_crear_agencia', {
+      p_nombre:nombre, p_ciudad:$('sa_ag_ciudad').value.trim(), p_contacto:$('sa_ag_contacto').value.trim(),
+      p_telefono:tel, p_plan:$('sa_ag_plan').value, p_precio:+$('sa_ag_precio').value||0,
+      p_vence:$('sa_ag_vence').value||null, p_admin_nombre:adNombre, p_admin_email:adEmail, p_admin_pass:adPass });
+    closeModal('modalSaAgencia'); toast('✅ Agencia creada'); cargarAgencias();
+    /* mostrar accesos con botones de envío */
+    mostrarAccesos({ agencia:nombre, nombre:adNombre, email:adEmail, pass:adPass, tel:tel });
+  }catch(e){ toast('Error: '+String(e).slice(0,80)); }
+}
+function mensajeAccesos(d){
+  return `¡Hola ${d.nombre}! 👋\n\nYa está lista la cuenta de *${d.agencia}* en AutoHub.\n\nTus datos de acceso:\n📧 Email: ${d.email}\n🔑 Contraseña: ${d.pass}\n\nEntrá desde el sistema y cambiá la contraseña cuando quieras. ¡Cualquier duda, escribime!`;
+}
+function mostrarAccesos(d){
+  const msg = mensajeAccesos(d);
+  const wa = d.tel ? 'https://wa.me/'+d.tel.replace(/[^\d]/g,'')+'?text='+encodeURIComponent(msg) : 'https://wa.me/?text='+encodeURIComponent(msg);
+  const mail = 'mailto:'+encodeURIComponent(d.email)+'?subject='+encodeURIComponent('Tus accesos a AutoHub — '+d.agencia)+'&body='+encodeURIComponent(msg);
+  $('saGestTitle').textContent = 'Accesos de '+d.agencia;
+  $('saGestBody').innerHTML = `
+    <div style="background:var(--panel2);border-radius:10px;padding:16px;margin-bottom:16px">
+      <div style="font-size:.78rem;color:var(--txt2);margin-bottom:8px">Datos de acceso del administrador</div>
+      <div style="font-size:.92rem;line-height:1.7">
+        <div><b>Email:</b> ${esc(d.email)}</div>
+        <div><b>Contraseña:</b> ${esc(d.pass)}</div>
+      </div>
+    </div>
+    <p style="font-size:.82rem;color:var(--txt2);margin-bottom:14px">Enviale los accesos al dueño de la agencia:</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="${wa}" target="_blank" class="btn btn-acc" style="text-decoration:none;flex:1;justify-content:center;min-width:130px">📱 Enviar por WhatsApp</a>
+      <a href="${mail}" class="btn btn-ghost" style="text-decoration:none;flex:1;justify-content:center;min-width:130px">📧 Enviar por Mail</a>
+    </div>
+    <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="copiarAccesos('${esc(d.email)}','${esc(d.pass)}')">📋 Copiar datos</button></div>
+    <div class="modal-foot" style="margin-top:16px"><button class="btn btn-acc" onclick="closeModal('modalSaGestion')">Listo</button></div>`;
+  openModal('modalSaGestion');
+}
+function copiarAccesos(email, pass){
+  const txt = 'Email: '+email+'\nContraseña: '+pass;
+  if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(()=>toast('Copiado')); }
+  else { toast('Email: '+email+' · Pass: '+pass); }
+}
+async function gestionarAgencia(id){
+  const a = SA_AGENCIAS.find(x=>x.id===id); if(!a) return;
+  $('saGestTitle').textContent = a.nombre;
+  const body = $('saGestBody');
+  body.innerHTML = '<p style="color:var(--txt2);padding:20px;text-align:center">Cargando...</p>';
+  openModal('modalSaGestion');
+  let usuarios=[], pagos=[];
+  try{ usuarios = await saRPC('sa_listar_usuarios',{p_empresa:id})||[]; }catch(e){}
+  try{ pagos = await saRPC('sa_listar_pagos',{p_empresa:id})||[]; }catch(e){}
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="field"><label>Plan</label><select class="inp" id="g_plan"><option value="base">Base</option><option value="estandar">Estándar</option><option value="pro">Pro</option></select></div>
+      <div class="field"><label>Estado</label><select class="inp" id="g_estado"><option value="activa">Activa</option><option value="suspendida">Suspendida</option><option value="prueba">Prueba</option></select></div>
+      <div class="field"><label>Abono mensual ($)</label><input class="inp" id="g_precio" type="number" value="${a.precio_mes||0}"></div>
+      <div class="field"><label>Vence el</label><input class="inp" id="g_vence" type="date" value="${a.vence||''}"></div>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:12px"><button class="btn btn-acc btn-sm" onclick="guardarAgencia('${id}')">Guardar cambios</button></div>
+
+    <div style="border-top:1px solid var(--line);margin:18px 0 12px;padding-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:600;font-size:.92rem">Usuarios (${usuarios.length})</span>
+        <button class="btn btn-ghost btn-sm" onclick="agregarUsuarioAgencia('${id}')">+ Usuario</button>
+      </div>
+      ${usuarios.length? usuarios.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
+        <div><span style="font-size:.88rem">${esc(u.nombre)}</span> <span style="font-size:.72rem;color:var(--txt2)">${esc(u.email)} · ${esc(u.rol)}</span></div>
+        <button class="icon-btn del" onclick="borrarUsuarioAgencia('${u.id}','${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M3 6h18M8 6V4h8v2m-9 0l1 14h8l1-14"/></svg></button>
+      </div>`).join('') : '<p style="font-size:.8rem;color:var(--txt2)">Sin usuarios.</p>'}
+    </div>
+
+    <div style="border-top:1px solid var(--line);margin:14px 0 12px;padding-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:600;font-size:.92rem">Pagos registrados</span>
+        <button class="btn btn-ghost btn-sm" onclick="registrarPagoAgencia('${id}')">+ Registrar pago</button>
+      </div>
+      ${pagos.length? pagos.map(p=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:.82rem">
+        <span>${fechaLinda(p.fecha)}${p.periodo?' · '+esc(p.periodo):''}${p.metodo?' · '+esc(p.metodo):''}</span><b style="color:var(--ok)">${fmt(p.monto)}</b></div>`).join('')
+        : '<p style="font-size:.8rem;color:var(--txt2)">Sin pagos registrados.</p>'}
+    </div>`;
+  $('g_plan').value = a.plan||'base'; $('g_estado').value = a.estado||'activa';
+}
+async function guardarAgencia(id){
+  try{
+    await saRPC('sa_actualizar_agencia', { p_empresa:id, p_plan:$('g_plan').value, p_estado:$('g_estado').value,
+      p_vence:$('g_vence').value||null, p_precio:+$('g_precio').value||0, p_contacto:null, p_ciudad:null, p_notas:null });
+    toast('Cambios guardados'); closeModal('modalSaGestion'); cargarAgencias();
+  }catch(e){ toast('Error: '+String(e).slice(0,80)); }
+}
+async function agregarUsuarioAgencia(id){
+  const nombre = prompt('Nombre del usuario:'); if(!nombre) return;
+  const email = prompt('Email:'); if(!email) return;
+  const pass = prompt('Contraseña inicial:'); if(!pass) return;
+  const rol = confirm('¿Es administrador? (Aceptar=admin, Cancelar=vendedor)') ? 'admin' : 'vendedor';
+  try{
+    await saRPC('sa_crear_usuario', { p_empresa:id, p_nombre:nombre, p_email:email, p_pass:pass, p_rol:rol });
+    toast('Usuario creado');
+    const ag = SA_AGENCIAS.find(x=>x.id===id);
+    mostrarAccesos({ agencia:ag?ag.nombre:'la agencia', nombre:nombre, email:email, pass:pass, tel:ag?ag.telefono:'' });
+  }catch(e){ toast('Error: '+String(e).slice(0,80)); }
+}
+async function borrarUsuarioAgencia(uid, agId){
+  if(!confirm('¿Eliminar este usuario?')) return;
+  try{ await saRPC('sa_borrar_usuario', { p_usuario:uid }); toast('Usuario eliminado'); gestionarAgencia(agId); }
+  catch(e){ toast('Error: '+String(e).slice(0,80)); }
+}
+async function registrarPagoAgencia(id){
+  const monto = prompt('Monto del pago:'); if(!monto) return;
+  const periodo = prompt('Período (ej 2026-07):','')||'';
+  const metodo = prompt('Método (efectivo/transferencia/MP):','')||'';
+  try{
+    await saRPC('sa_registrar_pago', { p_empresa:id, p_monto:+monto||0, p_periodo:periodo, p_metodo:metodo, p_nota:'' });
+    toast('Pago registrado'); gestionarAgencia(id);
+  }catch(e){ toast('Error: '+String(e).slice(0,80)); }
+}
 
 /* ---------- PWA: manifest inline + service worker ---------- */
 (function initPWA(){
@@ -3095,7 +3450,12 @@ document.querySelectorAll('.modal-bg').forEach(m=>{
 })();
 
 /* ---------- init ---------- */
-if(SES.token){
+if(saTokenValido()){
+  /* superadmin con sesión activa -> CORE CENTRAL */
+  $('loginScreen').style.display='none';
+  $('saScreen').style.display='block'; $('saLogin').style.display='none'; $('saPanel').style.display='block';
+  cargarAgencias();
+} else if(SES.token){
   iniciarApp().catch(()=>{ /* si falla, mostrar login */ $('loginScreen').style.display='flex'; $('appRoot').style.display='none'; });
 } else {
   $('loginScreen').style.display = 'flex';
